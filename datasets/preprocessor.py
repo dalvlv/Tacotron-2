@@ -5,6 +5,7 @@ from functools import partial
 import numpy as np
 from datasets import audio
 from wavenet_vocoder.util import is_mulaw, is_mulaw_quantize, mulaw, mulaw_quantize
+import re
 
 # for windows
 def replace(str):
@@ -73,6 +74,55 @@ def build_from_path(hparams, input_dirs, mel_dir, linear_dir, wav_dir, n_jobs=12
 				index += 1
 
 	return [future.result() for future in tqdm(futures) if future.result() is not None]
+
+
+def build_from_path_biaobei(hparams, input_dirs, mel_dir, linear_dir, wav_dir, n_jobs=8, tqdm=lambda x: x):
+	# We use ProcessPoolExecutor to parallelize across processes, this is just for
+	# optimization purposes and it can be omited
+	executor = ProcessPoolExecutor(max_workers=n_jobs)
+	futures = []
+	index = 1
+	for input_dir in input_dirs:
+		with open(os.path.join(input_dir, 'ProsodyLabeling', '000001-010000.txt'), encoding='utf-8') as f:
+			text = f.readlines()
+		for i in range(0, len(text), 2):
+			wav_name = text[i].strip().split('\t')[0]
+			wav_path = os.path.join(input_dir, 'Wave', '%s.wav' % wav_name)
+			text_line = text[i + 1].strip()
+			hanzi_line = text[i].strip().split('\t')[1]
+			text_line = add_biaodian(hanzi_line, text_line)
+			futures.append(executor.submit(partial(_process_utterance, mel_dir, linear_dir, wav_dir, wav_name, wav_path, text_line, hparams)))
+			index += 1
+	return [future.result() for future in tqdm(futures) if future.result() is not None]
+
+
+def add_biaodian(hanzi, pinyin):
+	# 正则表达式去除韵律标注
+	hanzi = re.sub(r'#[0-9]', '', hanzi)
+	# 去除单双引号
+	hanzi = re.sub(r'(“|”|‘|’)', '', hanzi)
+	# 去掉括号
+	hanzi = re.sub(r'(（|）)', '', hanzi)
+	# 获取拼音空格索引
+	index_whitespace = []
+	for i, letter in enumerate(pinyin):
+		if letter == ' ':
+			index_whitespace.append(i)
+	# 提取汉字中的字符
+	new_pinyin = pinyin  # 如果没有标点，返回原拼音
+	j = 0  # 多个标点会改变字符对应的空格索引
+	for index_char, value_char in enumerate(hanzi[:-1]):
+		if value_char in ['，', '。', '！', '？', '、']:
+			# 将汉字中的标点插入拼音中
+			new_pinyin = new_pinyin[:index_whitespace[index_char - j - 1]] + value_char + \
+						 new_pinyin[index_whitespace[index_char - j - 1]:]
+			# 每增加一个标点，空格的索引应该+1
+			index_whitespace = [s + 1 for s in index_whitespace]
+			j += 1
+	# 加入句末标点（每一句末必定有标点）
+	new_pinyin = new_pinyin + hanzi[-1]
+
+	return new_pinyin
 
 
 def _process_utterance(mel_dir, linear_dir, wav_dir, index, wav_path, text, hparams):
