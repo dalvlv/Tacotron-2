@@ -89,3 +89,11 @@ def english_cleaners(text):
   text = expand_abbreviations(text)
   text = collapse_whitespace(text)
   return text
+
+
+def chinese_cleaners(text):
+  '''Pipiline for Chinese text, 不包含处理数字正则化处理'''
+  text = convert_to_ascii(text)
+  text = collapse_whitespace(text)
+  text = text.strip()
+  return text
