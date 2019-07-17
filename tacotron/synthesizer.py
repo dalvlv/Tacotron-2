@@ -20,20 +20,21 @@ class Synthesizer:
 		inputs = tf.placeholder(tf.int32, [None, None], 'inputs')
 		input_lengths = tf.placeholder(tf.int32, [None], 'input_lengths')
 		targets = tf.placeholder(tf.float32, [None, None, hparams.num_mels], 'mel_targets')
+		split_infos = tf.placeholder(tf.int32, shape=(hparams.tacotron_num_gpus, None), name='split_infos')
 		with tf.variable_scope('model') as scope:
 			self.model = create_model(model_name, hparams)
 			if gta:
-				self.model.initialize(inputs, input_lengths, targets, gta=gta)
+				self.model.initialize(inputs, input_lengths, targets, gta=gta, split_infos=split_infos)
 			else:
-				self.model.initialize(inputs, input_lengths)
-			self.alignments = self.model.alignments
-			self.mel_outputs = self.model.mel_outputs
-			self.stop_token_prediction = self.model.stop_token_prediction
+				self.model.initialize(inputs, input_lengths, split_infos=split_infos)
+			self.alignments = self.model.tower_alignments
+			self.mel_outputs = self.model.tower_mel_outputs
+			self.stop_token_prediction = self.model.tower_stop_token_prediction
 			if hparams.predict_linear and not gta:
-				self.linear_outputs = self.model.linear_outputs
+				self.linear_outputs = self.model.tower_linear_outputs
 				self.linear_spectrograms = tf.placeholder(tf.float32, (None, hparams.num_freq), name='linear_spectrograms')
 				self.linear_wav_outputs = audio.inv_spectrogram_tensorflow(self.linear_spectrograms, hparams)
-
+		
 		self.gta = gta
 		self._hparams = hparams
 		#pad input sequences with the <pad_token> 0 ( _ )
