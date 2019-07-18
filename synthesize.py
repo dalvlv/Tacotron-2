@@ -10,6 +10,8 @@ from infolog import log
 from tacotron.synthesize import tacotron_synthesize
 from wavenet_vocoder.synthesize import wavenet_synthesize
 
+import re
+from pypinyin import pinyin, Style
 
 def prepare_run(args):
 	modified_hp = hparams.parse(args.hparams)
@@ -23,12 +25,43 @@ def prepare_run(args):
 	return taco_checkpoint, wave_checkpoint, modified_hp
 
 def get_sentences(args):
+	# 增加转拼音处理
 	if args.text_list != '':
 		with open(args.text_list, 'rb') as f:
 			sentences = list(map(lambda l: l.decode("utf-8")[:-1], f.readlines()))
+			sentences = sentence_list_trans(sentences)
 	else:
 		sentences = hparams.sentences
+		sentences = sentence_list_trans(sentences)
 	return sentences
+
+def sentence_list_trans(list_sentence):
+    new_sentence = []
+    for i, j in enumerate(list_sentence):
+        j2 = text_to_pinyin(j)
+        new_sentence.append(j2)
+    return new_sentence
+
+def text_to_pinyin(text):
+    '''中文转拼音'''
+    # 正则表达式去除韵律标注
+    text = re.sub(r'#[0-9]', '', text)
+    # 去除单双引号
+    text = re.sub(r'(“|”|‘|’)', '', text)
+    # 去掉括号
+    text = re.sub(r'(（|）)', '', text)
+    text_pinyin = pinyin(text, style=Style.TONE3)
+    new_text = ''
+    for i in text_pinyin:
+        i2 = i[0]
+        if re.match('[a-z]', i2[-1]):
+            i2 = i2 + '5'
+        if i2[-1] not in ['，','。','！','？','、']:
+            new_text = new_text + ' ' + i2
+        else:
+            new_text = new_text + i2
+    new_text = new_text.lstrip()
+    return new_text
 
 def synthesize(args, hparams, taco_checkpoint, wave_checkpoint, sentences):
 	log('Running End-to-End TTS Evaluation. Model: {}'.format(args.name or args.model))
