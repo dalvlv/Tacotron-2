@@ -6,6 +6,7 @@ from infolog import log
 from tacotron.synthesizer import Synthesizer
 from wsgiref import simple_server
 import argparse
+import re
 from pypinyin import pinyin, lazy_pinyin, Style
 
 
@@ -60,17 +61,37 @@ function synthesize(text) {
 </script></body></html>
 '''
 
-def p(input):
-	str = ""
-	arr = pinyin(input, style=Style.TONE3)
-	for i in arr:
-		str += i[0] + " "
-	return str
+# def p(input):
+# 	str = ""
+# 	arr = pinyin(input, style=Style.TONE3)
+# 	for i in arr:
+# 		str += i[0] + " "
+# 	return str
+def text_to_pinyin(text):
+    '''中文转拼音'''
+    # 正则表达式去除韵律标注
+    text = re.sub(r'#[0-9]', '', text)
+    # 去除单双引号
+    text = re.sub(r'(“|”|‘|’)', '', text)
+    # 去掉括号
+    text = re.sub(r'(（|）)', '', text)
+    text_pinyin = pinyin(text, style=Style.TONE3)
+    new_text = ''
+    for i in text_pinyin:
+        i2 = i[0]
+        if re.match('[a-z]', i2[-1]):
+            i2 = i2 + '5'
+        if i2[-1] not in ['，','。','！','？','、']:
+            new_text = new_text + ' ' + i2
+        else:
+            new_text = new_text + i2
+    new_text = new_text.lstrip()
+    return new_text
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint', default='pretrained/', help='Path to model checkpoint')
 parser.add_argument('--hparams', default='',help='Hyperparameter overrides as a comma-separated list of name=value pairs')
-parser.add_argument('--port', default=9000,help='Port of Http service')
+parser.add_argument('--port', default=8000,help='Port of Http service')
 parser.add_argument('--host', default="localhost",help='Host of Http service')
 parser.add_argument('--name', help='Name of logging directory if the two models were trained together.')
 args = parser.parse_args()
@@ -88,7 +109,7 @@ class Syn:
 	def on_get(self,req,res):
 		if not req.params.get('text'):
 			raise falcon.HTTPBadRequest()
-		res.data = synth.eval(p(req.params.get('text')))
+		res.data = synth.eval(text_to_pinyin(req.params.get('text')))
 		res.content_type = "audio/wav"		
 		
 
