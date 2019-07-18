@@ -225,13 +225,16 @@ class Synthesizer:
 		seqs = [np.asarray(text_to_sequence(text, cleaner_names))]
 		input_lengths = [len(seq) for seq in seqs]
 		feed_dict = {
-			self.model.inputs: seqs,
-			self.model.input_lengths: np.asarray(input_lengths, dtype=np.int32),
+			self.inputs: seqs,
+			self.input_lengths: np.asarray(input_lengths, dtype=np.int32),
 		}
+		split_infos = []
+		split_infos.append([len(seqs[0]), 0, 0, 0])
+		feed_dict[self.split_infos] = np.asarray(split_infos, dtype=np.int32)
 		linear_wavs = self.session.run(self.linear_wav_outputs, feed_dict=feed_dict)
 		wav = audio.inv_preemphasis(linear_wavs, hparams.preemphasis)
 		out = io.BytesIO()
-		audio.save_wav(wav, out ,sr=hparams.sample_rate)
+		# audio.save_wav(wav, out ,sr=hparams.sample_rate)
 		return out.getvalue()
 
 	def _round_up(self, x, multiple):
