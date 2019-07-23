@@ -69,10 +69,10 @@ def run_synthesis(args, checkpoint_path, output_dir, hparams):
 def wavenet_synthesize(args, hparams, checkpoint):
 	output_dir = 'wavenet_' + args.output_dir
 
-	try:
-		checkpoint_path = tf.train.get_checkpoint_state(checkpoint).model_checkpoint_path
-		log('loaded model at {}'.format(checkpoint_path))
-	except:
-		raise RuntimeError('Failed to load checkpoint at {}'.format(checkpoint))
+	# try:
+	# 	checkpoint_path = tf.train.get_checkpoint_state(checkpoint).model_checkpoint_path
+	# 	log('loaded model at {}'.format(checkpoint_path))
+	# except:
+	# 	raise RuntimeError('Failed to load checkpoint at {}'.format(checkpoint))
 
-	run_synthesis(args, checkpoint_path, output_dir, hparams)
+	run_synthesis(args, checkpoint, output_dir, hparams)

@@ -18,10 +18,11 @@ def prepare_run(args):
 	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 	run_name = args.name or args.tacotron_name or args.model
-	taco_checkpoint = os.path.join('logs-' + run_name, 'taco_' + args.checkpoint)
+	taco_checkpoint = os.path.join('logs-' + run_name, 'taco_pretrained')
 
 	run_name = args.name or args.wavenet_name or args.model
-	wave_checkpoint = os.path.join('logs-' + run_name, 'wave_' + args.checkpoint)
+	wave_checkpoint = os.path.join('logs-' + run_name, 'wave_pretrained' + args.checkpoint)
+
 	return taco_checkpoint, wave_checkpoint, modified_hp
 
 def get_sentences(args):
